@@ -1,3 +1,191 @@
+/**
+ * logic.js
+ * Contains both StorageManager (Firebase) and QuizApp logic
+ * Configured for standalone deployment of soal1.
+ */
+
+// --- Firebase & StorageManager Logic ---
+
+// Wrapper to prevent multiple inits if this file is loaded multiple times or alongside storage.js
+(function () {
+
+    // Firebase Configuration
+    const firebaseConfig = {
+        apiKey: "AIzaSyAO-CTf7DVqkD-V-_mtL7e9hP5QNf7vkQM",
+        authDomain: "dkotobakuis-c69a1.firebaseapp.com",
+        projectId: "dkotobakuis-c69a1",
+        storageBucket: "dkotobakuis-c69a1.firebasestorage.app",
+        messagingSenderId: "935131530677",
+        appId: "1:935131530677:web:d4f77248f542a2f39745fc"
+    };
+
+    // Initialize Firebase (check if already initialized)
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+
+    // Global references
+    const auth = firebase.auth();
+    const firestore = firebase.firestore();
+
+    const USERS_COLLECTION = 'users';
+
+    const getEmail = (username) => `${username.toLowerCase()}@dkotoba.app`;
+
+    class StorageManager {
+        constructor() {
+            this.currentUser = null;
+            window.dbRef = this;
+        }
+
+        // --- Helpers ---
+        async getCurrentUser() {
+            return new Promise((resolve) => {
+                const unsubscribe = auth.onAuthStateChanged(async (user) => {
+                    if (user) {
+                        const docRef = firestore.collection(USERS_COLLECTION).doc(user.uid);
+                        try {
+                            const doc = await docRef.get();
+                            if (doc.exists) {
+                                this.currentUser = { id: user.uid, ...doc.data() };
+                                resolve(this.currentUser);
+                            } else {
+                                resolve(null);
+                            }
+                        } catch (e) {
+                            console.error("Firestore error:", e);
+                            resolve(null);
+                        }
+                    } else {
+                        this.currentUser = null;
+                        resolve(null);
+                    }
+                    unsubscribe();
+                });
+            });
+        }
+
+        // --- Auth (Async) ---
+        async login(username, password) {
+            try {
+                const email = getEmail(username);
+                const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                const uid = userCredential.user.uid;
+                const doc = await firestore.collection(USERS_COLLECTION).doc(uid).get();
+                if (doc.exists) {
+                    this.currentUser = { id: uid, ...doc.data() };
+                    return { success: true, user: this.currentUser };
+                } else {
+                    return { success: false, message: 'Data user tidak ditemukan.' };
+                }
+            } catch (error) {
+                console.error("Login Error:", error);
+                return { success: false, message: 'Username atau password salah.' };
+            }
+        }
+
+        async register(username, password, fullName = '') {
+            try {
+                const email = getEmail(username);
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                const uid = userCredential.user.uid;
+
+                const newUser = {
+                    id: uid,
+                    username: username,
+                    fullName: fullName,
+                    role: 'user',
+                    score: 0,
+                    completedQuizzes: 0,
+                    history: [],
+                    quizHistoryDetails: {},
+                    createdAt: new Date().toISOString()
+                };
+
+                await firestore.collection(USERS_COLLECTION).doc(uid).set(newUser);
+                return { success: true, user: newUser };
+
+            } catch (error) {
+                console.error("Register Error:", error);
+                if (error.code === 'auth/email-already-in-use') {
+                    return { success: false, message: 'Username sudah digunakan.' };
+                }
+                return { success: false, message: error.message };
+            }
+        }
+
+        async checkUserStatus(username) {
+            try {
+                const user = await this.getUserByUsername(username);
+                if (user) {
+                    return 'existing';
+                }
+                return 'new';
+            } catch (error) {
+                console.error("Check User Error:", error);
+                return 'new';
+            }
+        }
+
+        async getUserByUsername(username) {
+            try {
+                const snapshot = await firestore.collection(USERS_COLLECTION)
+                    .where('username', '==', username)
+                    .limit(1)
+                    .get();
+
+                if (!snapshot.empty) {
+                    return snapshot.docs[0].data();
+                }
+                return null;
+            } catch (error) {
+                console.error("Get User Error:", error);
+                return null;
+            }
+        }
+
+        async updateUserProgress(userId, score, quizId, answers) {
+            const userRef = firestore.collection(USERS_COLLECTION).doc(userId);
+            await firestore.runTransaction(async (transaction) => {
+                const userDoc = await transaction.get(userRef);
+                if (!userDoc.exists) throw "User does not exist!";
+
+                const userData = userDoc.data();
+                const history = userData.history || [];
+                const quizHistoryDetails = userData.quizHistoryDetails || {};
+                const alreadyDone = history.includes(quizId);
+                let newScore = userData.score || 0;
+                let newCompleted = userData.completedQuizzes || 0;
+
+                if (!alreadyDone) {
+                    newScore += score;
+                    newCompleted += 1;
+                    history.push(quizId);
+                }
+
+                quizHistoryDetails[quizId] = {
+                    score: score,
+                    answers: answers,
+                    date: new Date().toISOString()
+                };
+
+                transaction.update(userRef, {
+                    score: newScore,
+                    completedQuizzes: newCompleted,
+                    history: history,
+                    quizHistoryDetails: quizHistoryDetails
+                });
+            });
+        }
+    }
+
+    // Expose StorageManager to window if not already present, or use it locally
+    window.StorageManager = StorageManager;
+})();
+
+
+// --- Quiz App Logic ---
+
 function quizApp() {
     return {
         currentIndex: 0,
@@ -23,9 +211,11 @@ function quizApp() {
 
         async init() {
             // Initialize StorageManager
-            if (typeof StorageManager !== 'undefined') {
-                this.db = new StorageManager();
+            if (typeof window.StorageManager !== 'undefined') {
+                this.db = new window.StorageManager();
                 this.currentUser = await this.db.getCurrentUser();
+            } else {
+                console.error("StorageManager not defined! Check logic.js.");
             }
 
             // Get Quiz ID and Mode from URL
@@ -88,7 +278,6 @@ function quizApp() {
                 let res;
                 if (this.authStatus === 'new') {
                     // Register
-                    // Pass fullName
                     res = await this.db.register(this.authUsername, this.authPassword, this.authFullName);
                 } else {
                     // Login
