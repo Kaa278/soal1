@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="id" class="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kuis Kotoba Bab 1 - DKotoba</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <script src="../../assets/js/storage.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#6366f1',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-slate-50 text-slate-900" x-data="quizApp()">
+
+    <div class="max-w-3xl mx-auto p-4 md:p-6 min-h-screen flex flex-col">
+
+        <!-- Header -->
+        <header class="mb-8 text-center" x-show="!showReview">
+            <h1 class="text-2xl md:text-3xl font-black text-slate-800 mb-2">Kuis Kotoba Bab 1</h1>
+            <p class="text-slate-500 text-sm md:text-base">Jawablah pertanyaan berikut dengan benar. Total 5 Soal.</p>
+        </header>
+
+        <!-- Quiz Container -->
+
+
+
+        <div class="bg-white rounded-3xl shadow-xl p-6 md:p-8 flex-1 relative overflow-hidden flex flex-col">
+
+            <!-- Result Screen -->
+            <div x-show="showResult && !showReview" x-cloak
+                class="absolute inset-0 bg-white z-20 flex flex-col items-center justify-center p-8 text-center animate-fade-in overflow-y-auto">
+                <div
+                    class="w-24 h-24 rounded-full bg-green-100 text-green-600 flex items-center justify-center mb-6 shadow-inner">
+                    <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+                <h2 class="text-3xl font-bold mb-2">Kuis Selesai!</h2>
+                <p class="text-slate-500 mb-8">Kamu telah menyelesaikan semua soal.</p>
+
+                <div class="grid grid-cols-2 gap-4 w-full max-w-sm mb-8">
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                        <p class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Skor Kamu</p>
+                        <p class="text-4xl font-black text-blue-600" x-text="score"></p>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                        <p class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Benar</p>
+                        <p class="text-4xl font-black text-green-600" x-text="correctCount + '/' + totalQuestions"></p>
+                    </div>
+                </div>
+
+                <div class="flex flex-col w-full max-w-xs gap-3">
+                    <button @click="showReview = true"
+                        class="w-full py-3 bg-yellow-100 hover:bg-yellow-200 text-yellow-700 rounded-xl font-bold transition-colors flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        Lihat Jawaban Benar
+                    </button>
+
+                    <button @click="resetQuiz()"
+                        class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-transform active:scale-95 shadow-lg shadow-blue-500/30">
+                        Coba Lagi
+                    </button>
+
+                    <a href="../../pages/user/dashboard.html"
+                        class="w-full py-3 text-slate-500 hover:text-slate-800 font-bold transition-colors text-sm">
+                        Kembali ke Dashboard
+                    </a>
+                </div>
+            </div>
+
+            <!-- Review Screen -->
+            <div x-show="showReview" x-cloak class="absolute inset-0 bg-slate-50 z-30 overflow-y-auto">
+                <div class="p-6 md:p-8 max-w-2xl mx-auto">
+                    <div
+                        class="flex items-center justify-between mb-8 sticky top-0 bg-slate-50/95 backdrop-blur py-4 border-b border-slate-200 z-10">
+                        <h2 class="text-2xl font-black">Pembahasan</h2>
+                        <button @click="showReview = false"
+                            class="text-slate-500 hover:text-slate-800 font-bold text-sm">
+                            Tutup
+                        </button>
+                    </div>
+
+                    <div class="space-y-6 pb-12">
+                        <template x-for="(q, index) in questions" :key="index">
+                            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                                <div class="flex items-start gap-4">
+                                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0"
+                                        :class="isCorrect(index) ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'">
+                                        <span x-text="index + 1"></span>
+                                    </div>
+                                    <div class="flex-1">
+                                        <h3 class="text-xl font-bold text-slate-800 mb-2" x-text="q.question"></h3>
+                                        <p class="text-sm text-slate-500 mb-4">Jawaban:</p>
+
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                            <div class="p-3 rounded-lg"
+                                                :class="isCorrect(index) ? 'bg-green-50 border border-green-100' : 'bg-red-50 border border-red-100'">
+                                                <span class="block text-xs uppercase font-bold opacity-60 mb-1">Jawaban
+                                                    Kamu</span>
+                                                <span class="font-bold"
+                                                    :class="isCorrect(index) ? 'text-green-700' : 'text-red-700'"
+                                                    x-text="userAnswers[index] || '-'"></span>
+                                            </div>
+                                            <div class="bg-blue-50 border border-blue-100 p-3 rounded-lg">
+                                                <span
+                                                    class="block text-xs uppercase font-bold text-blue-600 opacity-60 mb-1">Kunci
+                                                    Jawaban</span>
+                                                <span class="font-bold text-blue-700" x-text="q.answer"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <button @click="showReview = false"
+                        class="w-full py-4 bg-slate-800 text-white rounded-xl font-bold sticky bottom-6 shadow-xl">
+                        Kembali ke Hasil
+                    </button>
+                </div>
+            </div>
+
+            <!-- Questions -->
+            <template x-for="(q, index) in questions" :key="index">
+                <div x-show="currentIndex === index" x-transition:enter="transition ease-out duration-300"
+                    x-transition:enter-start="opacity-0 translate-x-10"
+                    x-transition:enter-end="opacity-100 translate-x-0" class="flex-1 flex flex-col">
+
+                    <!-- Progress -->
+                    <div class="flex justify-between items-center mb-6">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider"
+                            x-text="'Soal ' + (currentIndex + 1) + '/' + totalQuestions"></span>
+                        <div class="h-2 w-32 bg-slate-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-blue-500 transition-all duration-300"
+                                :style="'width: ' + ((currentIndex + 1) / totalQuestions * 100) + '%'"></div>
+                        </div>
+                    </div>
+
+                    <!-- Question Text -->
+                    <div class="mb-8 text-center py-4 flex-1 flex flex-col justify-center">
+                        <h2 class="text-5xl md:text-6xl font-black text-slate-800 mb-6" x-text="q.question"></h2>
+                        <p class="text-slate-500 font-medium"
+                            x-text="q.type === 'mc' ? 'Pilih bacaan romaji yang benar:' : 'Tuliskan bacaan romajinya:'">
+                        </p>
+                    </div>
+
+                    <!-- Multiple Choice Options -->
+                    <div x-show="q.type === 'mc'" class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+                        <template x-for="opt in q.options" :key="opt">
+                            <button @click="selectAnswer(opt)"
+                                class="p-4 rounded-xl border-2 border-slate-100 hover:border-blue-500 hover:bg-blue-50 text-left font-bold text-slate-700 transition-all active:scale-[0.98]"
+                                :class="selectedAnswer === opt ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : ''">
+                                <span x-text="opt"></span>
+                            </button>
+                        </template>
+                    </div>
+
+                    <!-- Essay Input -->
+                    <div x-show="q.type === 'essay'" class="mb-6">
+                        <input type="text" x-model="essayAnswer" @keydown.enter="submitEssay()"
+                            class="w-full p-5 text-center text-2xl font-bold rounded-2xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all placeholder:font-normal placeholder:text-slate-300"
+                            placeholder="Ketik jawabanmu..." autofocus>
+                    </div>
+
+                    <!-- Next Button -->
+                    <div class="mt-auto flex justify-end">
+                        <button @click="submitAnswer()" :disabled="!canSubmit"
+                            class="px-8 py-3 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold transition-all flex items-center gap-2 shadow-lg hover:shadow-xl hover:-translate-y-0.5">
+                            <span>Jawab</span>
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                            </svg>
+                        </button>
+                    </div>
+
+                </div>
+            </template>
+
+        </div>
+    </div>
+
+    <!-- Auth Overlay -->
+    <div x-show="showAuthOverlay" x-cloak
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm transition-opacity">
+
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden relative"
+            x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-95"
+            x-transition:enter-end="opacity-100 scale-100">
+
+            <!-- Decoration -->
+            <div
+                class="h-32 bg-gradient-to-br from-blue-600 to-indigo-600 relative overflow-hidden flex items-center justify-center">
+                <div class="absolute inset-0 bg-white/10 opacity-50"
+                    style="background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0); background-size: 20px 20px;">
+                </div>
+                <h2 class="text-3xl font-black text-white relative z-10 text-center px-4">
+                    <span
+                        x-text="authStep === 'username' ? 'Selamat Datang!' : (authStatus === 'new' ? 'Buat Akun' : 'Login')"></span>
+                </h2>
+            </div>
+
+            <div class="p-8">
+                <!-- Step 1: Username -->
+                <div x-show="authStep === 'username'" x-transition:enter="transition ease-out duration-300 transform"
+                    x-transition:enter-start="translate-x-full opacity-0"
+                    x-transition:enter-end="translate-x-0 opacity-100">
+                    <p class="text-slate-500 mb-6 text-center">masukkan username yang udah dibuat</p>
+                    <form @submit.prevent="checkUsername">
+                        <div class="mb-6">
+                            <label class="block text-sm font-bold text-slate-700 mb-2">Username</label>
+                            <input type="text" x-model="authUsername"
+                                class="w-full px-5 py-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none font-bold text-lg text-center lowercase"
+                                placeholder="contoh: budi123" required />
+                        </div>
+                        <button type="submit" :disabled="!authUsername || authLoading"
+                            class="w-full py-4 bg-slate-900 text-white rounded-xl font-bold shadow-lg hover:bg-slate-800 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                            <span x-show="!authLoading">Lanjut →</span>
+                            <span x-show="authLoading" class="animate-spin">⌛</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Step 2: Password -->
+                <div x-show="authStep === 'password'" x-transition:enter="transition ease-out duration-300 transform"
+                    x-transition:enter-start="translate-x-full opacity-0"
+                    x-transition:enter-end="translate-x-0 opacity-100">
+                    <div class="text-center mb-6">
+                        <p class="text-lg font-bold text-slate-800" x-text="'Halo, ' + authUsername"></p>
+                        <p class="text-sm text-slate-500"
+                            x-text="authStatus === 'new' ? 'username belum ada, silahkan isi password untuk mendaftar' : 'Akun ditemukan. Masukkan password.'">
+                        </p>
+                    </div>
+
+                    <form @submit.prevent="submitAuth">
+                        <div class="mb-6" x-show="authStatus === 'new'">
+                            <label class="block text-sm font-bold text-slate-700 mb-2">Nama Lengkap</label>
+                            <input type="text" x-model="authFullName"
+                                class="w-full px-5 py-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none font-bold text-lg text-center"
+                                placeholder="Nama Kamu" />
+                        </div>
+
+                        <div class="mb-6">
+                            <label class="block text-sm font-bold text-slate-700 mb-2">Password</label>
+                            <input type="password" x-model="authPassword"
+                                class="w-full px-5 py-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none font-bold text-lg text-center"
+                                placeholder="******" required />
+                        </div>
+
+                        <div x-show="authError"
+                            class="mb-4 p-3 rounded-lg bg-red-50 text-red-600 text-sm font-bold text-center"
+                            x-text="authError"></div>
+
+                        <div class="flex gap-3">
+                            <button type="button" @click="authStep = 'username'; authPassword = ''; authError = ''"
+                                class="w-1/3 py-4 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors">
+                                Kembali
+                            </button>
+                            <button type="submit" :disabled="!authPassword || authLoading"
+                                class="flex-1 py-4 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-500/30 hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                                <span x-show="!authLoading"
+                                    x-text="authStatus === 'new' ? 'Daftar & Mulai' : 'Masuk & Mulai'"></span>
+                                <span x-show="authLoading" class="animate-spin">⌛</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function quizApp() {
+            return {
+                currentIndex: 0,
+                score: 0,
+                correctCount: 0,
+                showResult: false,
+                showReview: false,
+                selectedAnswer: null,
+                essayAnswer: '',
+                userAnswers: [],
+                db: null,
+                currentUser: null,
+
+                async init() {
+                    // Initialize StorageManager
+                    if (typeof StorageManager !== 'undefined') {
+                        this.db = new StorageManager();
+                        this.currentUser = await this.db.getCurrentUser();
+                    }
+
+                    // Get Quiz ID and Mode from URL
+                    const params = new URLSearchParams(window.location.search);
+                    const qId = params.get('quizId');
+                    const mode = params.get('mode');
+
+                    this.quizId = qId ? qId : 'soal1';
+
+                    // Enforce Authentication via Overlay instead of Redirect
+                    if (!this.currentUser) {
+                        this.showAuthOverlay = true;
+                    } else {
+                        this.checkReviewMode(mode);
+                    }
+                },
+
+                // Auth Overlay Logic
+                showAuthOverlay: false,
+                authStep: 'username', // 'username' or 'password'
+                authUsername: '',
+                authPassword: '',
+                authFullName: '',
+                authStatus: null, // 'new' or 'existing'
+                authLoading: false,
+                authError: '',
+
+                async checkUsername() {
+                    if (!this.authUsername) return;
+                    this.authLoading = true;
+                    this.authError = '';
+
+                    try {
+                        const status = await this.db.checkUserStatus(this.authUsername);
+                        this.authStatus = status;
+
+                        if (status === 'existing') {
+                            const userData = await this.db.getUserByUsername(this.authUsername);
+                            if (userData) {
+                                this.currentUser = userData;
+                                this.showAuthOverlay = false;
+                                const params = new URLSearchParams(window.location.search);
+                                this.checkReviewMode(params.get('mode'));
+                            } else {
+                                this.authError = "Gagal memuat data user.";
+                            }
+                        } else {
+                            this.authStep = 'password';
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        this.authError = "Gagal mengecek username.";
+                    } finally {
+                        this.authLoading = false;
+                    }
+                },
+
+                async submitAuth() {
+                    if (!this.authPassword) return;
+                    // Validation for new user
+                    if (this.authStatus === 'new' && !this.authFullName) {
+                        this.authError = "Nama Lengkap wajib diisi.";
+                        return;
+                    }
+
+                    this.authLoading = true;
+                    this.authError = '';
+
+                    try {
+                        let res;
+                        if (this.authStatus === 'new') {
+                            // Register
+                            // Pass fullName
+                            res = await this.db.register(this.authUsername, this.authPassword, this.authFullName);
+                        } else {
+                            // Login
+                            res = await this.db.login(this.authUsername, this.authPassword);
+                        }
+
+                        if (res.success) {
+                            this.currentUser = res.user;
+                            this.showAuthOverlay = false;
+                            // Check if review mode needed
+                            const params = new URLSearchParams(window.location.search);
+                            this.checkReviewMode(params.get('mode'));
+                        } else {
+                            this.authError = res.message;
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        this.authError = "Terjadi kesalahan.";
+                    } finally {
+                        this.authLoading = false;
+                    }
+                },
+
+                checkReviewMode(mode) {
+                    // Review Mode logic moved here
+                    if (mode === 'review' && this.currentUser && this.currentUser.quizHistoryDetails) {
+                        const history = this.currentUser.quizHistoryDetails[this.quizId];
+                        if (history && history.answers) {
+                            this.userAnswers = history.answers;
+                            this.score = history.score;
+                            // Calculate correct count
+                            this.correctCount = 0;
+                            this.questions.forEach((q, idx) => {
+                                if (this.isCorrect(idx)) this.correctCount++;
+                            });
+
+                            this.showResult = true;
+                            this.showReview = true;
+                        }
+                    }
+                },
+
+                questions: [
+                    // 20 Multiple Choice Questions (N5)
+                    { type: 'mc', question: 'ねこ', options: ['neko', 'inu', 'tori', 'uma'], answer: 'neko' },
+                    { type: 'mc', question: 'いぬ', options: ['neko', 'inu', 'sakana', 'ushi'], answer: 'inu' },
+                    { type: 'mc', question: 'ほん', options: ['pen', 'hon', 'jisho', 'zasshi'], answer: 'hon' },
+                    { type: 'mc', question: 'えんぴつ', options: ['pen', 'enpitsu', 'keshigomu', 'fude'], answer: 'enpitsu' },
+                    { type: 'mc', question: 'がくせい', options: ['sensei', 'gakusei', 'isha', 'kaishain'], answer: 'gakusei' },
+                    { type: 'mc', question: 'せんせい', options: ['gakusei', 'sensei', 'keisatsu', 'enjinia'], answer: 'sensei' },
+                    { type: 'mc', question: 'やま', options: ['yama', 'kawa', 'umi', 'sora'], answer: 'yama' },
+                    { type: 'mc', question: 'かわ', options: ['yama', 'kawa', 'mizu', 'ki'], answer: 'kawa' },
+                    { type: 'mc', question: 'みず', options: ['mizu', 'ocha', 'gyuunyuu', 'sake'], answer: 'mizu' },
+                    { type: 'mc', question: 'たべる', options: ['taberu', 'nomu', 'yomu', 'kaku'], answer: 'taberu' },
+                    { type: 'mc', question: 'のむ', options: ['taberu', 'nomu', 'iku', 'kuru'], answer: 'nomu' },
+                    { type: 'mc', question: 'いく', options: ['iku', 'kuru', 'kaeru', 'aruku'], answer: 'iku' },
+                    { type: 'mc', question: 'くる', options: ['iku', 'kuru', 'hau', 'tobu'], answer: 'kuru' },
+                    { type: 'mc', question: 'おおきい', options: ['ookii', 'chiisai', 'takai', 'hikui'], answer: 'ookii' },
+                    { type: 'mc', question: 'ちいさい', options: ['ookii', 'chiisai', 'nagai', 'mijikai'], answer: 'chiisai' },
+                    { type: 'mc', question: 'あかい', options: ['akai', 'aoi', 'shiroi', 'kuroi'], answer: 'akai' },
+                    { type: 'mc', question: 'しろい', options: ['akai', 'shiroi', 'kiiroi', 'midori'], answer: 'shiroi' },
+                    { type: 'mc', question: 'いち', options: ['ichi', 'ni', 'san', 'yon'], answer: 'ichi' },
+                    { type: 'mc', question: 'に', options: ['ichi', 'ni', 'san', 'go'], answer: 'ni' },
+                    { type: 'mc', question: 'さん', options: ['ni', 'san', 'shi', 'roku'], answer: 'san' },
+
+                    // 10 Essay Questions (N5)
+                    { type: 'essay', question: 'りんご', answer: 'ringo' },
+                    { type: 'essay', question: 'さかな', answer: 'sakana' },
+                    { type: 'essay', question: 'とり', answer: 'tori' },
+                    { type: 'essay', question: 'うみ', answer: 'umi' },
+                    { type: 'essay', question: 'そら', answer: 'sora' },
+                    { type: 'essay', question: 'あめ', answer: 'ame' },
+                    { type: 'essay', question: 'ゆき', answer: 'yuki' },
+                    { type: 'essay', question: 'はな', answer: 'hana' },
+                    { type: 'essay', question: 'みみ', answer: 'mimi' },
+                    { type: 'essay', question: 'て', answer: 'te' }
+                ],
+
+                get totalQuestions() { return this.questions.length; },
+
+                get canSubmit() {
+                    const q = this.questions[this.currentIndex];
+                    if (q.type === 'mc') return this.selectedAnswer !== null;
+                    if (q.type === 'essay') return this.essayAnswer.trim() !== '';
+                    return false;
+                },
+
+                selectAnswer(ans) {
+                    this.selectedAnswer = ans;
+                },
+
+                submitEssay() {
+                    if (this.essayAnswer.trim() !== '') {
+                        this.submitAnswer();
+                    }
+                },
+
+                submitAnswer() {
+                    const q = this.questions[this.currentIndex];
+                    let isCorrect = false;
+                    let userAnswer = '';
+
+                    if (q.type === 'mc') {
+                        userAnswer = this.selectedAnswer;
+                        if (this.selectedAnswer === q.answer) isCorrect = true;
+                    } else {
+                        userAnswer = this.essayAnswer;
+                        if (this.essayAnswer.toLowerCase().trim() === q.answer.toLowerCase()) isCorrect = true;
+                    }
+
+                    // Track answer
+                    this.userAnswers.push(userAnswer);
+
+                    if (isCorrect) {
+                        this.correctCount++;
+                        this.score += 100 / this.totalQuestions;
+                    }
+
+                    // Reset inputs
+                    this.selectedAnswer = null;
+                    this.essayAnswer = '';
+
+                    // Next question or Finish
+                    if (this.currentIndex < this.totalQuestions - 1) {
+                        this.currentIndex++;
+                    } else {
+                        this.finishQuiz();
+                    }
+                },
+
+                isCorrect(index) {
+                    const q = this.questions[index];
+                    const userAns = this.userAnswers[index];
+                    if (!userAns) return false;
+
+                    if (q.type === 'mc') {
+                        return userAns === q.answer;
+                    } else {
+                        return userAns.toLowerCase().trim() === q.answer.toLowerCase();
+                    }
+                },
+
+                finishQuiz() {
+                    this.score = Math.round(this.score);
+                    this.showResult = true;
+
+                    // Save to DB
+                    if (this.db && this.currentUser && this.quizId) {
+                        this.db.updateUserProgress(this.currentUser.id, this.score, this.quizId, this.userAnswers);
+                        console.log('Progress saved for quiz:', this.quizId);
+                    } else {
+                        console.warn('StorageManager, CurrentUser, or QuizId not found');
+                    }
+                },
+
+                resetQuiz() {
+                    this.currentIndex = 0;
+                    this.score = 0;
+                    this.correctCount = 0;
+                    this.showResult = false;
+                    this.showReview = false;
+                    this.selectedAnswer = null;
+                    this.essayAnswer = '';
+                    this.userAnswers = [];
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>
